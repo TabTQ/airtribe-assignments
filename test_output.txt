@@ -1,0 +1,234 @@
+=================== 1. Before any data exists ===================
+
+### List reporters (empty)
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/'
+[]
+HTTP 200 - PASS
+
+### List issues (empty)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/'
+[]
+HTTP 200 - PASS
+
+### Reporter by id, none exist
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/?id=1'
+{"error": "Reporter not found"}
+HTTP 404 - PASS
+
+### Issue by id, none exist
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?id=1'
+{"error": "Issue not found"}
+HTTP 404 - PASS
+
+### Issue when its reporter doesn't exist yet
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":1,"title":"t","description":"d","status":"open","priority":"high","reporter_id":1}'
+{"error": "Reporter not found"}
+HTTP 404 - PASS
+
+=================== 2. Reporters - create ===================
+
+### Create reporter 1
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":1,"name":"Ada","email":"ada@x.com","team":"backend"}'
+{"id": 1, "name": "Ada", "email": "ada@x.com", "team": "backend"}
+HTTP 201 - PASS
+
+### Create reporter 2
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":2,"name":"Bob","email":"bob@x.com","team":"frontend"}'
+{"id": 2, "name": "Bob", "email": "bob@x.com", "team": "frontend"}
+HTTP 201 - PASS
+
+### Reporter with empty name
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":3,"name":"","email":"c@x.com","team":"devops"}'
+{"error": "Name cannot be empty"}
+HTTP 400 - PASS
+
+### Reporter with invalid email
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":3,"name":"Cy","email":"no-at-sign","team":"devops"}'
+{"error": "Invalid email"}
+HTTP 400 - PASS
+
+### Reporter with non-string email
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":3,"name":"Cy","email":123,"team":"devops"}'
+{"error": "Invalid email"}
+HTTP 400 - PASS
+
+### Reporter with non-integer id
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":"abc","name":"Cy","email":"c@x.com","team":"devops"}'
+{"error": "ID must be an integer"}
+HTTP 400 - PASS
+
+### Reporter with missing fields
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":3,"name":"Cy"}'
+{"error": "Missing fields: email, team"}
+HTTP 400 - PASS
+
+### Reporter with duplicate id
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d '{"id":1,"name":"Dup","email":"d@x.com","team":"ops"}'
+{"error": "Reporter with this ID already exists"}
+HTTP 400 - PASS
+
+### Reporter with invalid JSON body
+$ curl -X POST 'http://127.0.0.1:8000/api/reporters/' -H 'Content-Type: application/json' -d 'not json'
+{"detail":"JSON parse error - Expecting value: line 1 column 1 (char 0)"}
+HTTP 400 - PASS
+
+=================== 3. Reporters - read ===================
+
+### List all reporters
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/'
+[{"id": 1, "name": "Ada", "email": "ada@x.com", "team": "backend"}, {"id": 2, "name": "Bob", "email": "bob@x.com", "team": "frontend"}]
+HTTP 200 - PASS
+
+### Reporter by id (2)
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/?id=2'
+{"id": 2, "name": "Bob", "email": "bob@x.com", "team": "frontend"}
+HTTP 200 - PASS
+
+### Reporter by id, not found
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/?id=99'
+{"error": "Reporter not found"}
+HTTP 404 - PASS
+
+### Reporter by non-numeric id
+$ curl -X GET 'http://127.0.0.1:8000/api/reporters/?id=abc'
+{"error": "Invalid reporter ID"}
+HTTP 400 - PASS
+
+### Wrong method on reporters
+$ curl -X DELETE 'http://127.0.0.1:8000/api/reporters/'
+{"detail":"Method \"DELETE\" not allowed."}
+HTTP 405 - PASS
+
+=================== 4. Issues - create (success) ===================
+
+### Critical issue -> [URGENT] message
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":1,"title":"Login button not working on mobile","description":"Users on iOS 17 cannot tap the login button","status":"open","priority":"critical","reporter_id":1}'
+{"id": 1, "title": "Login button not working on mobile", "description": "Users on iOS 17 cannot tap the login button", "status": "open", "priority": "critical", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.492808", "message": "[URGENT] Login button not working on mobile \u2014 needs immediate attention"}
+HTTP 201 - PASS
+
+### Low priority issue
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":2,"title":"Typo on footer","description":"Misspelled word","status":"closed","priority":"low","reporter_id":1}'
+{"id": 2, "title": "Typo on footer", "description": "Misspelled word", "status": "closed", "priority": "low", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.508587", "message": "Typo on footer \u2014 low priority, handle when free"}
+HTTP 201 - PASS
+
+### High priority issue (base class)
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":3,"title":"Slow dashboard","description":"Takes 10s to load","status":"open","priority":"high","reporter_id":2}'
+{"id": 3, "title": "Slow dashboard", "description": "Takes 10s to load", "status": "open", "priority": "high", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.521186", "message": "Slow dashboard [high]"}
+HTTP 201 - PASS
+
+### Medium priority issue (base class)
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":4,"title":"Wrong tooltip","description":"Shows old text","status":"in_progress","priority":"medium","reporter_id":2}'
+{"id": 4, "title": "Wrong tooltip", "description": "Shows old text", "status": "in_progress", "priority": "medium", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.532239", "message": "Wrong tooltip [medium]"}
+HTTP 201 - PASS
+
+### Resolved issue
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":5,"title":"Old crash","description":"Fixed","status":"resolved","priority":"high","reporter_id":1}'
+{"id": 5, "title": "Old crash", "description": "Fixed", "status": "resolved", "priority": "high", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.543013", "message": "Old crash [high]"}
+HTTP 201 - PASS
+
+=================== 5. Issues - create (failures) ===================
+
+### Empty title
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"","description":"x","status":"open","priority":"high","reporter_id":1}'
+{"error": "Title cannot be empty"}
+HTTP 400 - PASS
+
+### Invalid status
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"t","description":"x","status":"bad","priority":"high","reporter_id":1}'
+{"error": "Invalid status: bad"}
+HTTP 400 - PASS
+
+### Invalid priority
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"t","description":"x","status":"open","priority":"urgent","reporter_id":1}'
+{"error": "Invalid priority: urgent"}
+HTTP 400 - PASS
+
+### Reporter does not exist
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"t","description":"x","status":"open","priority":"high","reporter_id":99}'
+{"error": "Reporter not found"}
+HTTP 404 - PASS
+
+### Issue with non-integer id
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":"abc","title":"t","description":"x","status":"open","priority":"high","reporter_id":1}'
+{"error": "ID must be an integer"}
+HTTP 400 - PASS
+
+### Issue with non-integer reporter_id
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"t","description":"x","status":"open","priority":"high","reporter_id":"abc"}'
+{"error": "Reporter ID must be an integer"}
+HTTP 400 - PASS
+
+### Missing fields
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":6,"title":"t"}'
+{"error": "Missing fields: description, status, priority, reporter_id"}
+HTTP 400 - PASS
+
+### Duplicate id
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d '{"id":1,"title":"Dup","description":"x","status":"open","priority":"high","reporter_id":1}'
+{"error": "Issue with this ID already exists"}
+HTTP 400 - PASS
+
+### Invalid JSON body
+$ curl -X POST 'http://127.0.0.1:8000/api/issues/' -H 'Content-Type: application/json' -d 'not json'
+{"detail":"JSON parse error - Expecting value: line 1 column 1 (char 0)"}
+HTTP 400 - PASS
+
+=================== 6. Issues - read ===================
+
+### List all issues (5 expected)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/'
+[{"id": 1, "title": "Login button not working on mobile", "description": "Users on iOS 17 cannot tap the login button", "status": "open", "priority": "critical", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.492808"}, {"id": 2, "title": "Typo on footer", "description": "Misspelled word", "status": "closed", "priority": "low", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.508587"}, {"id": 3, "title": "Slow dashboard", "description": "Takes 10s to load", "status": "open", "priority": "high", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.521186"}, {"id": 4, "title": "Wrong tooltip", "description": "Shows old text", "status": "in_progress", "priority": "medium", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.532239"}, {"id": 5, "title": "Old crash", "description": "Fixed", "status": "resolved", "priority": "high", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.543013"}]
+HTTP 200 - PASS
+
+### Issue by id (1)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?id=1'
+{"id": 1, "title": "Login button not working on mobile", "description": "Users on iOS 17 cannot tap the login button", "status": "open", "priority": "critical", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.492808"}
+HTTP 200 - PASS
+
+### Issue by id, not found
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?id=99'
+{"error": "Issue not found"}
+HTTP 404 - PASS
+
+### Issue by non-numeric id
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?id=abc'
+{"error": "Invalid issue ID"}
+HTTP 400 - PASS
+
+### Filter status=open (issues 1, 3)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=open'
+[{"id": 1, "title": "Login button not working on mobile", "description": "Users on iOS 17 cannot tap the login button", "status": "open", "priority": "critical", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.492808"}, {"id": 3, "title": "Slow dashboard", "description": "Takes 10s to load", "status": "open", "priority": "high", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.521186"}]
+HTTP 200 - PASS
+
+### Filter status=closed (issue 2)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=closed'
+[{"id": 2, "title": "Typo on footer", "description": "Misspelled word", "status": "closed", "priority": "low", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.508587"}]
+HTTP 200 - PASS
+
+### Filter status=in_progress (issue 4)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=in_progress'
+[{"id": 4, "title": "Wrong tooltip", "description": "Shows old text", "status": "in_progress", "priority": "medium", "reporter_id": 2, "created_at": "2026-11-24 13:54:20.532239"}]
+HTTP 200 - PASS
+
+### Filter status=resolved (issue 5)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=resolved'
+[{"id": 5, "title": "Old crash", "description": "Fixed", "status": "resolved", "priority": "high", "reporter_id": 1, "created_at": "2026-11-24 13:54:20.543013"}]
+HTTP 200 - PASS
+
+### Filter is case-sensitive (Open -> no match)
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=Open'
+{"Error": "No issues found with the specified status"}
+HTTP 404 - PASS
+
+### Filter with no matches
+$ curl -X GET 'http://127.0.0.1:8000/api/issues/?status=nothing'
+{"Error": "No issues found with the specified status"}
+HTTP 404 - PASS
+
+### Wrong method on issues
+$ curl -X DELETE 'http://127.0.0.1:8000/api/issues/'
+{"detail":"Method \"DELETE\" not allowed."}
+HTTP 405 - PASS
+
+=================== Summary ===================
+Passed: 44   Failed: 0
